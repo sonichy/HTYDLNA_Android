@@ -4,6 +4,7 @@ package com.hty.dlna;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -14,9 +15,12 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import org.w3c.dom.Text;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -30,26 +34,30 @@ public class MainActivity extends Activity {
     EditText editText;
     Button button_discover, button_select, button_response;
     TextView textView;
+    InputMethodManager IMM;
     List<DLNAClient> list_client = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        editText = findViewById(R.id.editText);
-        button_discover = findViewById(R.id.button_discover);
+        IMM = (InputMethodManager) getApplicationContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        editText = (EditText) findViewById(R.id.editText);
+        button_discover = (Button) findViewById(R.id.button_discover);
         button_discover.setOnClickListener(new MyOnClickListener());
-        button_select = findViewById(R.id.button_select);
+        button_select = (Button) findViewById(R.id.button_select);
         button_select.setOnClickListener(new MyOnClickListener());
-        button_response = findViewById(R.id.button_response);
+        button_response = (Button) findViewById(R.id.button_response);
         button_response.setOnClickListener(new MyOnClickListener());
-        textView = findViewById(R.id.textView);
+        textView = (TextView) findViewById(R.id.textView);
         textView.setMovementMethod(ScrollingMovementMethod.getInstance());
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add(0, 0, 0, "投屏");
+        menu.add(0, 0, 0, "发现");
+        menu.add(0, 1, 1, "关于");
+        menu.add(0, 2, 2, "退出");
         return true;
     }
 
@@ -66,6 +74,17 @@ public class MainActivity extends Activity {
                     }
                 }).start();
                 break;
+            case 1:
+                new AlertDialog.Builder(this)
+                        .setIcon(R.mipmap.ic_launcher)
+                        .setTitle("海天鹰投屏 V1.0")
+                        .setMessage("基于DLNA的投屏，支持Macast、极光TV、奇异果TV。\n作者：海天鹰\nE-mail: sonichy@163.com\nQQ: 84429027\n参考：\nhttps://github.com/sonichy/HTYDLNA")
+                        .setPositiveButton("确定", null)
+                        .show();
+                break;
+            case 2:
+                finish();
+                break;
         }
         return true;
     }
@@ -75,6 +94,7 @@ public class MainActivity extends Activity {
         public void onClick(View v) {
             switch (v.getId()) {
                 case R.id.button_discover:
+                    IMM.hideSoftInputFromWindow(editText.getWindowToken(), 0);
                     textView.setText("");
                     list_client.clear();
                     new Thread(new Runnable() {
@@ -85,6 +105,7 @@ public class MainActivity extends Activity {
                     }).start();
                     break;
                 case R.id.button_select:
+                    IMM.hideSoftInputFromWindow(editText.getWindowToken(), 0);
                     String items[] = new String[list_client.size()];
                     for (int i=0; i<list_client.size(); i++) {
                         items[i] = list_client.get(i).friendlyName;
@@ -94,7 +115,7 @@ public class MainActivity extends Activity {
                     ADB.setItems(items, new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            DLNAClient client = list_client.get(which);
+                            final DLNAClient client = list_client.get(which);
                             for (int i=0; i<client.list_service.size(); i++) {
                                 Map map = client.list_service.get(i);
                                 //Log.e(Thread.currentThread().getStackTrace()[2] + "", map.toString());
@@ -107,7 +128,7 @@ public class MainActivity extends Activity {
                                         public void run() {
                                             String s = client.uploadFileToPlay(controlURL, editText.getText().toString());
                                             Message message = new Message();
-                                            message.what = 0;
+                                            message.what = 1;
                                             message.obj = "投屏响应：\n" + s;
                                             handler.sendMessage(message);
                                         }
@@ -120,8 +141,9 @@ public class MainActivity extends Activity {
                     ADB.show();
                     break;
                 case R.id.button_response:
+                    IMM.hideSoftInputFromWindow(editText.getWindowToken(), 0);
                     for (int i=0; i<list_client.size(); i++) {
-                        textView.append(list_client.get(i).responseData);
+                        textView.setText(list_client.get(i).responseData);
                     }
                     break;
             }
@@ -176,6 +198,10 @@ public class MainActivity extends Activity {
                 case 0:
                     String s = (String) msg.obj;
                     textView.append(s);
+                    break;
+                case 1:
+                    s = (String) msg.obj;
+                    textView.setText(s);
                     break;
             }
         }
